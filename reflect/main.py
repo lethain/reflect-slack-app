@@ -34,7 +34,7 @@ def block(typ, text=None):
         return {
             "type": typ
         }
-    return data
+
 
 def recall_post(request):
     data = request.form
