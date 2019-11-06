@@ -5,11 +5,22 @@ See https://github.com/lethain/reflect-slack-app
     https://lethain.com/creating-reflect-slack-app/
 
 """
-import logging
+import os, logging, hmac, hashlib
 from flask import escape, jsonify
 
 
-def reflect_post(request):
+def verify(request,secret):
+    body = request.get_data()
+    timestamp = request.headers['X-Slack-Request-Timestamp']
+    sig_basestring = 'v0:%s:%s' % (timestamp, body.decode('utf-8'))
+    computed_sha = hmac.new(secret, sig_basestring.encode('utf-8'), digestmod=hashlib.sha256).hexdigest()
+    my_sig = 'v0=%s' % (computed_sha,)
+    slack_sig = request.headers['X-Slack-Signature']
+    if my_sig != slack_sig:
+        raise Exception("my_sig %s does not equal slack_sig %s" % (my_sig, slack_sig))
+
+
+def reflect_post(request):    
     data = request.form
     return "Reflected: `{}`".format(data['text'])
 
@@ -37,6 +48,9 @@ def block(typ, text=None):
 
 
 def recall_post(request):
+    signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
+    verify(request, signing_secret)
+    
     data = request.form
     team_id, user_id, text = data['team_id'], data['user_id'], data['text']
     items = recall(team_id, user_id, text)
@@ -55,6 +69,4 @@ def recall_post(request):
         "response_type": "in_channel" if "public" in text else "ephemeral",
         "blocks": [block(*args) for args in block_args]
     }
-
-
     return jsonify(resp)
