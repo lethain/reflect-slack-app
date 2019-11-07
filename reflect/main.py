@@ -20,7 +20,40 @@ def verify(request,secret):
         raise Exception("my_sig %s does not equal slack_sig %s" % (my_sig, slack_sig))
 
 
-def reflect_post(request):    
+def url_verification_event(request, parsed):
+    challenge = parsed['challenge']
+    return jsonify({"challenge": challenge})
+
+
+def event_callback_event(request, parsed):
+    event_type = parsed['event']['type']
+    if event_type == 'app_home_opened':
+        return app_home_opened_event(request, parsed)
+    else:
+        raise Exception("unable to handle event_callback event type: %s" % (event_type,))
+
+    
+def app_home_opened_event(request, parsed):
+    print(parsed)
+    return "to be implemented"
+
+
+def event_post(request):
+    signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
+    verify(request, signing_secret)
+    parsed = request.json
+    event_type = parsed['type']
+    if event_type == 'url_verification':
+        return url_verification_event(request, parsed)
+    if event_type == 'event_callback':
+        return event_callback_event(request, parsed)
+    else:
+        raise Exception("unable to handle event type: %s" % (event_type,))
+
+
+def reflect_post(request):
+    signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
+    verify(request, signing_secret)
     data = request.form
     return "Reflected: `{}`".format(data['text'])
 
@@ -50,7 +83,7 @@ def block(typ, text=None):
 def recall_post(request):
     signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
     verify(request, signing_secret)
-    
+
     data = request.form
     team_id, user_id, text = data['team_id'], data['user_id'], data['text']
     items = recall(team_id, user_id, text)
