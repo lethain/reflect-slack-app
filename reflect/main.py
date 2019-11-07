@@ -37,10 +37,10 @@ def slack_api(endpoint, msg):
     url = "https://slack.com/api/%s" % (endpoint,)
     bot_token = os.environ['SLACK_BOT_TOKEN'].encode('utf-8')
     headers = {
-        "Authorization": "Bearer %s" % (bot_token.decode('utf-8'),)
+        "Authorization": "Bearer %s" % (bot_token.decode('utf-8'),),
+        "Content-Type": "application/json; charset=utf-8",
     }
     resp = requests.post(url, json=msg, headers=headers)
-    print(resp.request.headers)
     if resp.status_code != 200:
         raise Exception("Error calling slack api (%s): %s" % (resp.status_code, resp.content))
     return resp.json()
@@ -51,7 +51,7 @@ def app_home_opened_event(request, parsed):
     blocks_spec = [
         ('mrkdwn', "It's alive!"),
     ]
-    blocks = [block(x) for x in blocks_spec]
+    blocks = [block(*x) for x in blocks_spec]
     msg = {
         "user_id": user_id,
         "view": {
