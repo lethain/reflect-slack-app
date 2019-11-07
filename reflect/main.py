@@ -5,7 +5,7 @@ See https://github.com/lethain/reflect-slack-app
     https://lethain.com/creating-reflect-slack-app/
 
 """
-import os, logging, hmac, hashlib
+import os, logging, hmac, hashlib, requests
 from flask import escape, jsonify
 
 
@@ -32,10 +32,36 @@ def event_callback_event(request, parsed):
     else:
         raise Exception("unable to handle event_callback event type: %s" % (event_type,))
 
-    
+
+def slack_api(endpoint, msg):
+    url = "https://slack.com/api/%s" % (endpoint,)
+    bot_token = os.environ['SLACK_BOT_TOKEN'].encode('utf-8')
+    headers = {
+        "Authorization": "Bearer %s" % (bot_token.decode('utf-8'),)
+    }
+    resp = requests.post(url, json=msg, headers=headers)
+    print(resp.request.headers)
+    if resp.status_code != 200:
+        raise Exception("Error calling slack api (%s): %s" % (resp.status_code, resp.content))
+    return resp.json()
+
+
 def app_home_opened_event(request, parsed):
-    print(parsed)
-    return "to be implemented"
+    user_id = parsed['event']['user']
+    blocks_spec = [
+        ('mrkdwn', "It's alive!"),
+    ]
+    blocks = [block(x) for x in blocks_spec]
+    msg = {
+        "user_id": user_id,
+        "view": {
+            "type": "home",
+            "blocks": blocks,
+        }
+    }
+    resp = slack_api("views.publish", msg)
+    print(resp)
+    return "OK"
 
 
 def event_post(request):
