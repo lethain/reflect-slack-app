@@ -48,8 +48,15 @@ def slack_api(endpoint, msg):
 
 def app_home_opened_event(request, parsed):
     user_id = parsed['event']['user']
+    team_id = parsed['team_id']
+    items = recall(team_id, user_id, "last 14 days")
+    items_text = "\n".join(["%s. %s" % (i, x) for i, x in enumerate(items, 1)])
     blocks_spec = [
-        ('mrkdwn', "It's alive!"),
+        ('mrkdwn', "Your home tab for Reflect"),
+        ('divider',),
+        ('mrkdwn', items_text),
+        ('divider',),
+        ('mrkdwn', "Some more stuff here"),
     ]
     blocks = [block(*x) for x in blocks_spec]
     msg = {
@@ -60,7 +67,6 @@ def app_home_opened_event(request, parsed):
         }
     }
     resp = slack_api("views.publish", msg)
-    print(resp)
     return "OK"
 
 
