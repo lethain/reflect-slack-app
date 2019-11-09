@@ -5,38 +5,26 @@ See https://github.com/lethain/reflect-slack-app
     https://lethain.com/creating-reflect-slack-app/
 
 """
-import os, logging, hmac, hashlib, requests
-from flask import escape, jsonify
+import os, logging
+from flask import jsonify
+from api import get_message, slack_api
+from utils import block, verify
 
 
-def verify(request,secret):
-    body = request.get_data()
-    timestamp = request.headers['X-Slack-Request-Timestamp']
-    sig_basestring = 'v0:%s:%s' % (timestamp, body.decode('utf-8'))
-    computed_sha = hmac.new(secret, sig_basestring.encode('utf-8'), digestmod=hashlib.sha256).hexdigest()
-    my_sig = 'v0=%s' % (computed_sha,)
-    slack_sig = request.headers['X-Slack-Signature']
-    if my_sig != slack_sig:
-        raise Exception("my_sig %s does not equal slack_sig %s" % (my_sig, slack_sig))
+def reflect(team_id, user_id, text):
+    print("Reflected(%s, %s): %s" % (team_id, user_id, text))
+
+
+def recall(team_id, user_id, text):
+    "Recall reflections for (`team_id`, `user_id`) filtered by parameters in `text`"
+    # stub implementation
+    import random
+    return ["I did something {}".format(x) for x in range(random.randint(3, 10))]    
 
 
 def url_verification_event(request, parsed):
     challenge = parsed['challenge']
     return jsonify({"challenge": challenge})
-
-
-def get_message(channel, msg_ts):
-    url = "https://slack.com/api/conversations.history"
-    bot_token = os.environ['SLACK_OAUTH_TOKEN'].encode('utf-8')
-    params = {
-        'token': bot_token,
-        'channel': channel,
-        'latest': msg_ts,
-        'limit': 1,
-        'inclusive': True
-    }
-    resp = requests.get(url, params=params)
-    return resp.json()
 
 
 def reaction_added_event(request, parsed):
@@ -65,19 +53,6 @@ def event_callback_event(request, parsed):
         return reaction_added_event(request, parsed)
     else:
         raise Exception("unable to handle event_callback event type: %s" % (event_type,))
-
-
-def slack_api(endpoint, msg):
-    url = "https://slack.com/api/%s" % (endpoint,)
-    bot_token = os.environ['SLACK_BOT_TOKEN'].encode('utf-8')
-    headers = {
-        "Authorization": "Bearer %s" % (bot_token.decode('utf-8'),),
-        "Content-Type": "application/json; charset=utf-8",
-    }
-    resp = requests.post(url, json=msg, headers=headers)
-    if resp.status_code != 200:
-        raise Exception("Error calling slack api (%s): %s" % (resp.status_code, resp.content))
-    return resp.json()
 
 
 def app_home_opened_event(request, parsed):
@@ -117,9 +92,6 @@ def event_post(request):
         raise Exception("unable to handle event type: %s" % (event_type,))
 
 
-def reflect(team_id, user_id, text):
-    print("Reflected(%s, %s): %s" % (team_id, user_id, text))
-
 def reflect_post(request):
     signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
     verify(request, signing_secret)
@@ -128,28 +100,6 @@ def reflect_post(request):
     team_id, user_id, text = data['team_id'], data['user_id'], data['text']
     reflect(team_id, user_id, text)
     return "Reflected: `{}`".format(text)
-
-
-def recall(team_id, user_id, text):
-    "Recall reflections for (`team_id`, `user_id`) filtered by parameters in `text`"
-    # stub implementation
-    import random
-    return ["I did something {}".format(x) for x in range(random.randint(3, 10))]
-
-
-def block(typ, text=None):
-    if typ == "mrkdwn":
-        return {
-            "type": "section",
-            "text": {
-                "text": text,
-                "type": "mrkdwn"
-            }
-        }
-    else:
-        return {
-            "type": typ
-        }
 
 
 def recall_post(request):
