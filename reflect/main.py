@@ -25,10 +25,44 @@ def url_verification_event(request, parsed):
     return jsonify({"challenge": challenge})
 
 
+def get_message(channel, msg_ts):
+    url = "https://slack.com/api/conversations.history"
+    bot_token = os.environ['SLACK_OAUTH_TOKEN'].encode('utf-8')
+    params = {
+        'token': bot_token,
+        'channel': channel,
+        'latest': msg_ts,
+        'limit': 1,
+        'inclusive': True
+    }
+    resp = requests.get(url, params=params)
+    return resp.json()
+
+
+def reaction_added_event(request, parsed):
+    event = parsed['event']
+    if event['reaction'] in ('ididit', 'udidit'):
+        item = event['item']
+        event_user_id = event['user']
+        if item['type'] == 'message':
+            channel = item['channel']
+            msg_ts = item['ts']
+            msg_resp = get_message(channel, msg_ts)
+            msg = msg_resp['messages'][0]
+            msg_team_id, msg_user_id, text  = msg['team'], msg['user'], msg['text']
+            if event['reaction'] == 'ididit':
+                reflect(msg_team_id, msg_user_id, text)
+            elif event['reaction'] == 'udidit':
+                reflect(msg_team_id, event_user_id, text)
+    return "Ok"
+
+
 def event_callback_event(request, parsed):
     event_type = parsed['event']['type']
     if event_type == 'app_home_opened':
         return app_home_opened_event(request, parsed)
+    elif event_type == 'reaction_added':
+        return reaction_added_event(request, parsed)
     else:
         raise Exception("unable to handle event_callback event type: %s" % (event_type,))
 
@@ -83,11 +117,17 @@ def event_post(request):
         raise Exception("unable to handle event type: %s" % (event_type,))
 
 
+def reflect(team_id, user_id, text):
+    print("Reflected(%s, %s): %s" % (team_id, user_id, text))
+
 def reflect_post(request):
     signing_secret = os.environ['SLACK_SIGN_SECRET'].encode('utf-8')
     verify(request, signing_secret)
+
     data = request.form
-    return "Reflected: `{}`".format(data['text'])
+    team_id, user_id, text = data['team_id'], data['user_id'], data['text']
+    reflect(team_id, user_id, text)
+    return "Reflected: `{}`".format(text)
 
 
 def recall(team_id, user_id, text):
