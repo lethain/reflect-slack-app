@@ -5,6 +5,15 @@ from google.cloud import firestore
 DB = firestore.Client()
 
 
+def credentials(team_id):
+    return DB.collection('creds').document(team_id)
+
+
+def set_credentials(team_id, data):
+    creds = credentials(team_id)
+    creds.set(data)
+
+
 def tasks(team_id, user_id):
     key = "%s:%s" % (team_id, user_id)
     ref = DB.collection('users').document(key).collection('tasks')

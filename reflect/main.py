@@ -7,8 +7,10 @@ See https://github.com/lethain/reflect-slack-app
 """
 import os
 from utils import verify
+from api import oauth_access
 from commands import reflect_command, recall_command
 from events import url_verification_event, reaction_added_event, app_home_opened_event
+from storage import set_credentials
 
 
 ROUTES = (
@@ -42,3 +44,10 @@ def dispatch(request):
 
     print("couldn't handle route(%s), json(%s), form(%s)" % (route, request.json, request.form))
     raise Exception("couldn't handle route %s" % (route,))
+
+
+def oauth_redirect(request):
+    code = request.args.get('code')
+    resp = oauth_access(code)
+    team_id = resp['team_id']
+    set_credentials(team_id, resp)
