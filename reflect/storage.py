@@ -13,6 +13,13 @@ def set_credentials(team_id, data):
     creds = credentials(team_id)
     creds.set(data)
 
+def get_credentials(team_id):
+    creds = credentials(team_id).get().to_dict()
+    return {
+        'oauth': creds['access_token'],
+        'bot': creds['bot']['bot_access_token'],
+x    }
+
 
 def tasks(team_id, user_id):
     key = "%s:%s" % (team_id, user_id)

@@ -1,5 +1,6 @@
 import os
 import requests
+from storage import get_credentials
 
 
 def oauth_access(code):
@@ -15,11 +16,11 @@ def oauth_access(code):
     return resp.json()
 
 
-def get_message(channel, msg_ts):
+def get_message(team_id, channel, msg_ts):
     url = "https://slack.com/api/conversations.history"
-    bot_token = os.environ['SLACK_OAUTH_TOKEN'].encode('utf-8')
+    oauth_token = get_credentials(team_id)['oauth']
     params = {
-        'token': bot_token,
+        'token': oauth_token,
         'channel': channel,
         'latest': msg_ts,
         'limit': 1,
@@ -29,9 +30,9 @@ def get_message(channel, msg_ts):
     return resp.json()
 
 
-def slack_api(endpoint, msg):
+def slack_api(team_id, endpoint, msg):
     url = "https://slack.com/api/%s" % (endpoint,)
-    bot_token = os.environ['SLACK_BOT_TOKEN'].encode('utf-8')
+    bot_token = get_credentials(team_id)['bot']
     headers = {
         "Authorization": "Bearer %s" % (bot_token.decode('utf-8'),),
         "Content-Type": "application/json; charset=utf-8",
